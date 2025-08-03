@@ -43,7 +43,7 @@ export function WalletInputForm({ onSubmit, isLoading }: WalletInputFormProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" suppressHydrationWarning>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="walletAddress"
@@ -51,13 +51,13 @@ export function WalletInputForm({ onSubmit, isLoading }: WalletInputFormProps) {
                 <FormItem>
                   <FormLabel>Wallet Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="0x..." {...field} />
+                    <Input placeholder="0x..." {...field} suppressHydrationWarning />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isLoading} suppressHydrationWarning>
               {isLoading ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
