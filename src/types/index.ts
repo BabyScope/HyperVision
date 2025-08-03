@@ -11,10 +11,20 @@ export type Position = {
   margin: number;
 };
 
+// This type defines the structure of a spot balance object.
+export type SpotBalance = {
+    coin: string;
+    total: number;
+}
+
 // This type represents the structure of the response from the getPositions server action.
 export type PositionsResponse = {
   success: boolean;
-  data: Position[];
+  data: {
+    positions: Position[];
+    spotBalances: SpotBalance[];
+    walletBalance: number;
+  };
   error?: string;
 };
 
@@ -39,3 +49,8 @@ export type HyperliquidPosition = {
   };
   type: 'oneWay';
 };
+
+export type HyperliquidSpotBalance = {
+    coin: string;
+    total: string;
+}

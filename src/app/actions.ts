@@ -1,6 +1,6 @@
 'use server';
 
-import type { PositionsResponse, Position, HyperliquidPosition } from '@/types';
+import type { PositionsResponse, Position, HyperliquidPosition, SpotBalance, HyperliquidSpotBalance } from '@/types';
 
 // The API endpoint for Hyperliquid
 const API_URL = 'https://api.hyperliquid.xyz/info';
@@ -24,19 +24,27 @@ function transformPosition(apiPosition: HyperliquidPosition): Position {
   };
 }
 
+function transformSpotBalance(apiBalance: HyperliquidSpotBalance): SpotBalance {
+    return {
+        coin: apiBalance.coin,
+        total: parseFloat(apiBalance.total),
+    };
+}
+
+
 export async function getPositions(
   address: string
 ): Promise<PositionsResponse> {
   if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
     return {
       success: false,
-      data: [],
+      data: { positions: [], spotBalances: [], walletBalance: 0 },
       error: 'Invalid wallet address provided.',
     };
   }
 
   try {
-    const response = await fetch(API_URL, {
+    const clearinghousePromise = fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -47,33 +55,54 @@ export async function getPositions(
       }),
     });
 
-    if (!response.ok) {
-      // Handle non-2xx responses
-      const errorText = await response.text();
-      console.error(`API request failed with status ${response.status}: ${errorText}`);
-      return { success: false, data: [], error: `Failed to fetch positions from Hyperliquid API. Status: ${response.status}` };
+    const spotPromise = fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'spotClearinghouseState', user: address }),
+    });
+
+    const [clearinghouseRes, spotRes] = await Promise.all([clearinghousePromise, spotPromise]);
+
+
+    if (!clearinghouseRes.ok) {
+      const errorText = await clearinghouseRes.text();
+      console.error(`API request failed with status ${clearinghouseRes.status}: ${errorText}`);
+      return { success: false, data: { positions: [], spotBalances: [], walletBalance: 0 }, error: `Failed to fetch positions from Hyperliquid API. Status: ${clearinghouseRes.status}` };
+    }
+     if (!spotRes.ok) {
+      const errorText = await spotRes.text();
+      console.error(`API request failed with status ${spotRes.status}: ${errorText}`);
+      return { success: false, data: { positions: [], spotBalances: [], walletBalance: 0 }, error: `Failed to fetch spot balances from Hyperliquid API. Status: ${spotRes.status}` };
     }
 
-    const data = await response.json();
 
-    // The API returns an object with assetPositions, or an empty array if no user found.
-    if (data && data.assetPositions) {
-      const transformedPositions = data.assetPositions.map(transformPosition);
-      return { success: true, data: transformedPositions };
-    } else if (Array.isArray(data) && data.length === 0) {
+    const clearinghouseData = await clearinghouseRes.json();
+    const spotData = await spotRes.json();
+
+    let transformedPositions: Position[] = [];
+    let walletBalance = 0;
+    
+    if (clearinghouseData && clearinghouseData.assetPositions) {
+      transformedPositions = clearinghouseData.assetPositions.map(transformPosition);
+      walletBalance = parseFloat(clearinghouseData.marginSummary.accountValue);
+    } else if (Array.isArray(clearinghouseData) && clearinghouseData.length === 0) {
       // This case handles when the user address is not found and API returns an empty array.
-      return { success: true, data: [] };
-    } else {
-        // Handle cases where the response is not in the expected format
-        console.error('Unexpected API response format:', data);
-        return { success: false, data: [], error: 'Received an unexpected response format from the server.' };
+       transformedPositions = [];
+       walletBalance = 0;
     }
+
+    let transformedSpotBalances: SpotBalance[] = [];
+    if(spotData && spotData.balances){
+        transformedSpotBalances = spotData.balances.map(transformSpotBalance);
+    }
+
+    return { success: true, data: { positions: transformedPositions, spotBalances: transformedSpotBalances, walletBalance } };
 
   } catch (error) {
     console.error('Error fetching positions:', error);
     if (error instanceof Error) {
-        return { success: false, data: [], error: error.message };
+        return { success: false, data: { positions: [], spotBalances: [], walletBalance: 0 }, error: error.message };
     }
-    return { success: false, data: [], error: 'An unknown error occurred while fetching positions.' };
+    return { success: false, data: { positions: [], spotBalances: [], walletBalance: 0 }, error: 'An unknown error occurred while fetching positions.' };
   }
 }
