@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as z from 'zod';
 import type { Position, SpotBalance } from '@/types';
 import { getPositions } from './actions';
@@ -15,20 +15,18 @@ const formSchema = z.object({
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 });
 
+const REFRESH_INTERVAL = 30000; // 30 seconds
+
 export default function Home() {
   const [positions, setPositions] = useState<Position[] | null>(null);
   const [spotBalances, setSpotBalances] = useState<SpotBalance[] | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentWalletAddress, setCurrentWalletAddress] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleFetchPositions = async (values: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
-    setPositions(null); // Clear previous positions
-    setSpotBalances(null);
-    setWalletBalance(null);
-    
-    const result = await getPositions(values.walletAddress);
+  const fetchPositions = async (address: string) => {
+    const result = await getPositions(address);
     
     if (result.success) {
       setPositions(result.data.positions);
@@ -44,9 +42,34 @@ export default function Home() {
         description: result.error || 'An unexpected error occurred.',
       });
     }
+  }
+
+  const handleFetchPositions = async (values: z.infer<typeof formSchema>) => {
+    setIsLoading(true);
+    setPositions(null); // Clear previous positions
+    setSpotBalances(null);
+    setWalletBalance(null);
+    
+    await fetchPositions(values.walletAddress);
+    setCurrentWalletAddress(values.walletAddress);
 
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    if (!currentWalletAddress) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      fetchPositions(currentWalletAddress);
+    }, REFRESH_INTERVAL);
+
+    // Clear the interval when the component unmounts or the address changes
+    return () => clearInterval(intervalId);
+
+  }, [currentWalletAddress]);
+
 
   return (
     <main className="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-8 space-y-8">
