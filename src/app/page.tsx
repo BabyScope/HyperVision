@@ -9,7 +9,6 @@ import { Header } from '@/components/hypervision/Header';
 import { WalletInputForm } from '@/components/hypervision/WalletInputForm';
 import { PositionCarousel } from '@/components/hypervision/PositionCarousel';
 import { BalanceCard } from '@/components/hypervision/BalanceCard';
-import { PortfolioAnalysis } from '@/components/hypervision/PortfolioAnalysis';
 
 // Define the schema type here to avoid importing from a client component into a server action file
 const formSchema = z.object({
@@ -87,11 +86,6 @@ export default function Home() {
         <div className="mt-12 w-full max-w-lg mx-auto">
             <BalanceCard spotBalances={spotBalances} walletBalance={walletBalance} isLoading={isLoading} />
         </div>
-        {positions && positions.length > 0 && walletBalance !== null && (
-          <div className="mt-8 w-full flex justify-center">
-            <PortfolioAnalysis positions={positions} walletBalance={walletBalance} />
-          </div>
-        )}
         <div className="mt-12">
           <PositionCarousel positions={positions} isLoading={isLoading} />
         </div>
